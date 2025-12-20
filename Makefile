@@ -1,8 +1,8 @@
 .PHONY: run build test fmt vet lint tidy clean dev seed
 
 GO           ?= go
-BINARY       ?= 
-CMD_MAIN     := ./cmd//main.go
+BINARY       ?= cmd
+CMD_MAIN     := ./cmd/main.go
 
 run: ## Запуск основного приложения (HTTP-сервер)
 	$(GO) run $(CMD_MAIN)
