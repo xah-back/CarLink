@@ -3,39 +3,23 @@ package logging
 import (
 	"log/slog"
 	"os"
-	"strings"
 )
 
-func ParseLevel(level string) slog.Level {
-	switch strings.ToLower(level) {
-	case "debug":
-		return slog.LevelDebug
-	case "info":
-		return slog.LevelInfo
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
+func New() *slog.Logger {
+	_ = os.MkdirAll("tmp", 0755)
 
-func InitLogger() *slog.Logger {
-	logLevelENV := os.Getenv("LOG_LEVEL")
-	if logLevelENV == "" {
-		logLevelENV = "info"
+	file, err := os.OpenFile(
+		"tmp/app.log",
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY,
+		0644,
+	)
+	if err != nil {
+		panic(err)
 	}
 
-	level := ParseLevel(logLevelENV)
-	handlerLogger := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     level,
+	handler := slog.NewTextHandler(file, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
 	})
 
-	logger := slog.New(handlerLogger)
-
-	slog.Info("logger инициализирован", "level", level.String())
-
-	return logger
+	return slog.New(handler)
 }

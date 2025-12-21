@@ -1,23 +1,19 @@
 package main
 
 import (
-	"log/slog"
-	"os"
-
 	"github.com/mutsaevz/team-5-ambitious/internal/config"
+	"github.com/mutsaevz/team-5-ambitious/internal/logging"
 )
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	// инициализация логгера (tmp внутри logging)
+	logger := logging.New()
 
 	db := config.SetUpDatabaseConnection(logger)
-
 	if db == nil {
-		logger.Error("DB is nil")
+		logger.Error("database is nil")
 		return
 	}
 
-	logger.Info("Application started successfully")
+	logger.Info("application started successfully")
 }
