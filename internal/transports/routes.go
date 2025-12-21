@@ -11,8 +11,11 @@ func RegisterRoutes(
 	routes *gin.Engine,
 	logger *slog.Logger,
 	userService services.UserService,
+	carService services.CarService,
 ) {
 	userHandler := NewUserHandler(userService, logger)
+	carHandler := NewCarHandler(carService, logger)
 
 	userHandler.RegisterRoutes(routes)
+	carHandler.RegisterRoutes(routes)
 }
