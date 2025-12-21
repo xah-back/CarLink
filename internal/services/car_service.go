@@ -12,7 +12,6 @@ type CarService interface {
 
 	// List() ([]models.Car, error)
 
-	// GetByID(id uint) (*models.Car, error)
 	GetByOwner(id uint) (*models.Car, error)
 
 	// Update(id uint, req *models.Car) (*models.Car, error)
@@ -53,16 +52,6 @@ func (s *carService) Create(id uint, req models.CarCreateRequest) (*models.Car, 
 
 	return &car, err
 }
-
-// func (s *carService) GetByID(id uint) (*models.Car, error) {
-// 	car, err := s.carRepo.GetByID(id)
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return car, nil
-// }
 
 func (s *carService) GetByOwner(id uint) (*models.Car, error) {
 	car, err := s.carRepo.GetByOwner(id)
