@@ -57,7 +57,7 @@ func (h *CarHandler) Create(ctx *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Car created successfully", slog.Uint64("car_id", car.ID), slog.Uint64("owner_id", id))
+	h.logger.Info("Car created successfully", slog.Uint64("car_id", uint64(car.ID)), slog.Uint64("owner_id", id))
 	ctx.JSON(http.StatusOK, car)
 }
 
@@ -91,7 +91,7 @@ func (h *CarHandler) GetByOwner(ctx *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Car retrieved by owner", slog.Uint64("owner_id", id), slog.Uint64("car_id", car.ID))
+	h.logger.Info("Car retrieved by owner", slog.Uint64("owner_id", id), slog.Uint64("car_id", uint64(car.ID)))
 	ctx.JSON(http.StatusOK, car)
 }
 
@@ -112,7 +112,7 @@ func (h *CarHandler) GetByID(ctx *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Car retrieved by ID", slog.Uint64("car_id", car.ID))
+	h.logger.Info("Car retrieved by ID", slog.Uint64("car_id", uint64(car.ID)))
 	ctx.JSON(http.StatusOK, car)
 }
 
@@ -140,7 +140,7 @@ func (h *CarHandler) Update(ctx *gin.Context) {
 		return
 	}
 
-	h.logger.Info("Car updated successfully", slog.Uint64("car_id", car.ID))
+	h.logger.Info("Car updated successfully", slog.Uint64("car_id", uint64(car.ID)))
 	ctx.JSON(http.StatusOK, car)
 }
 
