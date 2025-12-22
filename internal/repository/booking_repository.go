@@ -60,7 +60,7 @@ func (r *gormBookingRepository) List() ([]models.Booking, error) {
 		r.logger.Error("db error", slog.String("op", op), slog.Any("error", err))
 		return nil, err
 	}
-	r.logger.Debug("db response", slog.String("op", op), slog.Int("count", len(bookings)))
+
 	return bookings, nil
 
 }

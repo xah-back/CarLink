@@ -24,7 +24,12 @@ func main() {
 		return
 	}
 
-	if err := db.AutoMigrate(&models.User{}, &models.Car{}, &models.Trip{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.User{},
+		&models.Car{},
+		&models.Trip{},
+		&models.Booking{},
+		&models.Review{}); err != nil {
 		logger.Error("failed to migrate database", "error", err)
 		os.Exit(1)
 	}
@@ -34,12 +39,14 @@ func main() {
 	userRepo := repository.NewUserRepository(db, logger)
 	carRepo := repository.NewCarRepository(db, logger)
 	tripRepo := repository.NewTripRepository(db, logger)
+	bookingRepo := repository.NewBookingRepository(db, logger)
 
 	userService := services.NewUserService(userRepo, logger)
 	carService := services.NewCarService(carRepo, userRepo, logger)
 	tripService := services.NewTripService(tripRepo, userRepo, carRepo, logger)
+	bookingService := services.NewBookingService(bookingRepo, db, logger)
 
-	transports.RegisterRoutes(r, logger, userService, carService, tripService)
+	transports.RegisterRoutes(r, logger, userService, carService, tripService, bookingService)
 
 	port := os.Getenv("PORT")
 	if port == "" {

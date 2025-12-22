@@ -13,12 +13,15 @@ func RegisterRoutes(
 	userService services.UserService,
 	carService services.CarService,
 	tripService services.TripService,
+	bookingService services.BookingService,
 ) {
 	userHandler := NewUserHandler(userService, logger)
 	carHandler := NewCarHandler(carService, logger)
 	tripHandler := NewTripHandler(tripService, logger)
+	bookingHandler := NewBookingHandler(bookingService, logger)
 
 	userHandler.RegisterRoutes(routes)
 	carHandler.RegisterRoutes(routes)
 	tripHandler.RegisterRoutes(routes)
+	bookingHandler.RegisterRoutes(routes)
 }

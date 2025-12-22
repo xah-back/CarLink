@@ -107,7 +107,7 @@ func (s *bookingService) Update(id uint, req *models.BookingUpdateRequest) (*mod
 		return nil, err
 	}
 	s.logger.Info("booking updated", slog.String("op", op), slog.Uint64("booking_id", uint64(id)))
-	return nil, err
+	return booking, err
 }
 
 func (s *bookingService) Delete(id uint) error {
