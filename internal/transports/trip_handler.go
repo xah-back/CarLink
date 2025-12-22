@@ -26,6 +26,7 @@ func (h *TripHandler) RegisterRoutes(ctx *gin.Engine) {
 	api := ctx.Group("/trips")
 	{
 		api.POST("/:id", h.Create)
+		api.GET("/", h.GetByQueryParameters)
 	}
 }
 
@@ -51,4 +52,24 @@ func (h *TripHandler) Create(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, trip)
+}
+
+func (h *TripHandler) GetByQueryParameters(ctx *gin.Context) {
+	var filter models.TripFilter
+
+	if from := ctx.Query("from_city"); from != "" {
+		filter.FromCity = &from
+	}
+
+	if to := ctx.Query("to_city"); to != "" {
+		filter.ToCity = &to
+	}
+
+	list, err := h.service.GetByQueryParameters(filter)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, list)
 }

@@ -11,6 +11,8 @@ import (
 type TripService interface {
 	Create(driverID uint, req *models.TripCreateRequest) (*models.Trip, error)
 
+	GetByQueryParameters(filter models.TripFilter) ([]models.Trip, error)
+
 	// List() ([]models.Trip, error)
 
 	// GetByID(id uint) (*models.Trip, error)
@@ -56,8 +58,8 @@ func (s *tripService) Create(id uint, req *models.TripCreateRequest) (*models.Tr
 	var trip = models.Trip{
 		DriverID:       driver.ID,
 		CarID:          car.ID,
-		From:           req.From,
-		To:             req.To,
+		FromCity:       req.FromCity,
+		ToCity:         req.ToCity,
 		StartTime:      req.StartTime,
 		DurationMin:    req.DurationMin,
 		TotalSeats:     car.Seats,
@@ -71,4 +73,8 @@ func (s *tripService) Create(id uint, req *models.TripCreateRequest) (*models.Tr
 	}
 
 	return &trip, nil
+}
+
+func (s *tripService) GetByQueryParameters(filter models.TripFilter) ([]models.Trip, error) {
+	return s.tripRepo.GetByQueryParameters(filter)
 }

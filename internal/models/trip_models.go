@@ -11,8 +11,8 @@ type Trip struct {
 
 	DriverID       uint      `json:"driver_id"`
 	CarID          uint      `json:"car_id"`
-	From           string    `json:"from"`
-	To             string    `json:"to"`
+	FromCity       string    `json:"from_city"`
+	ToCity         string    `json:"to_city"`
 	StartTime      time.Time `json:"start_time"`
 	DurationMin    int       `json:"duration_min"`
 	TotalSeats     int       `json:"total_seats"`
@@ -23,11 +23,19 @@ type Trip struct {
 }
 
 type TripCreateRequest struct {
-	From           string               `json:"from"`
-	To             string               `json:"to"`
+	FromCity       string               `json:"from_city"`
+	ToCity         string               `json:"to_city"`
 	StartTime      time.Time            `json:"start_time"`
 	DurationMin    int                  `json:"duration_min"`
 	AvailableSeats int                  `json:"available_seats"`
 	Price          int                  `json:"price"`
 	TripStatus     constants.TripStatus `json:"trip_status"`
+}
+
+type TripFilter struct {
+	FromCity       *string               `json:"from_city"`
+	ToCity         *string               `json:"to_city"`
+	StartTime      *time.Time            `json:"start_time"`
+	AvailableSeats *int                  `json:"available_seats"`
+	TripStatus     *constants.TripStatus `json:"trip_status"`
 }
