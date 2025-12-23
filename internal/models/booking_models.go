@@ -3,9 +3,9 @@ package models
 type Booking struct {
 	Base
 
-	TripID        uint   `json:"trip_id"`
-	PassengerID   uint   `json:"passenger_id"`
-	BookingStatus string `json:"booking_status"`
+	TripID        uint   `json:"trip_id" gorm:"not null;index"`
+	PassengerID   uint   `json:"passenger_id" gorm:"not null;index"`
+	BookingStatus string `json:"booking_status" gorm:"type:varchar(50);not null;index"`
 }
 
 type BookingCreateRequest struct {
