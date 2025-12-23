@@ -8,3 +8,11 @@ const (
 	TripInProgress TripStatus = "in_progress"
 	TripCompleted  TripStatus = "completed"
 )
+
+type BookingStatus string
+
+const (
+	BookingPending  = "pending"   // заявка отправлена
+	BookingApproved = "approved"  // водитель принял
+	BookingRejected = "rejected"  // водитель отклонил
+)
