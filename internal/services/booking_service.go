@@ -12,7 +12,7 @@ import (
 )
 
 type BookingService interface {
-	Create(tripID uint, passengerID uint) (*models.Booking, error)
+	Create(req *models.BookingCreateRequest) (*models.Booking, error)
 
 	List() ([]models.Booking, error)
 
@@ -21,6 +21,8 @@ type BookingService interface {
 	Rejected(bookingID uint, driverID uint) error
 
 	GetByID(id uint) (*models.Booking, error)
+
+	GetAllPendingBookingsByTripID(tripID uint) ([]models.Booking, error)
 
 	Update(id uint, req *models.BookingUpdateRequest) (*models.Booking, error)
 
@@ -49,37 +51,23 @@ func NewBookingService(
 }
 
 func (s *bookingService) Create(
-	tripID uint,
-	passengerID uint,
+	req *models.BookingCreateRequest,
 ) (*models.Booking, error) {
+	op := "service.booking.Create"
 
-	trip, err := s.tripRepo.GetByID(tripID)
-	if err != nil {
-		return nil, fmt.Errorf("trip not found: %w", err)
-	}
-
-	if constants.TripStatus(trip.TripStatus) != constants.TripPublished {
-		return nil, errors.New("trip is not available")
-	}
-
-	exists, err := s.bookingRepo.Exists(tripID, passengerID)
-	if err != nil {
-		return nil, err
-	}
-	if exists {
-		return nil, errors.New("request already sent")
-	}
+	s.logger.Debug(" call", slog.String("op", op))
 
 	booking := &models.Booking{
-		TripID:        tripID,
-		PassengerID:   passengerID,
+		TripID:        req.TripID,
+		PassengerID:   req.PassengerID,
 		BookingStatus: constants.BookingPending,
 	}
 
 	if err := s.bookingRepo.Create(booking); err != nil {
+		s.logger.Error(" error", slog.String("op", op), slog.Any("error", err))
 		return nil, err
 	}
-
+	s.logger.Info("booking created", slog.String("op", op), slog.Uint64("booking_id", uint64(booking.ID)))
 	return booking, nil
 }
 
@@ -159,6 +147,21 @@ func (s *bookingService) Rejected(bookingID uint, driverID uint) error {
 
 		return nil
 	})
+}
+
+func (s *bookingService) GetAllPendingBookingsByTripID(tripID uint) ([]models.Booking, error) {
+
+	op := "service.booking.GetAllPendingBookingsByTripID"
+
+	s.logger.Debug(" call", slog.String("op", op), slog.Uint64("trip_id", uint64(tripID)))
+
+	bookings, err := s.bookingRepo.GetAllPendingBookingsByTripID(tripID)
+	if err != nil {
+		s.logger.Error(" error", slog.String("op", op), slog.Any("error", err))
+		return nil, err
+	}
+	s.logger.Info("pending bookings retrieved", slog.String("op", op), slog.Int("count", len(bookings)))
+	return bookings, nil
 }
 
 func (s *bookingService) List() ([]models.Booking, error) {
