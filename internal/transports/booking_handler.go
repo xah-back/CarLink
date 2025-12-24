@@ -28,7 +28,6 @@ func (h BookingHandler) RegisterRoutes(ctx *gin.Engine) {
 		api.POST("/", h.Create)
 		api.GET("/", h.List)
 		api.GET("/:id", h.GetByID)
-		api.GET("/:id", h.GetByID)
 		api.GET("/trip/:trip_id/pending", h.GetAllPendingBookingsByTripID)
 		api.PATCH("/:id", h.Update)
 		api.DELETE("/:id", h.Delete)
