@@ -21,6 +21,8 @@ type ReviewRepository interface {
 	ExistsByTripAndUser(tripID, userID uint) (bool, error)
 
 	GetAvgRatingByTrip(tripID uint) (float64, error)
+
+	WithDB(db *gorm.DB) ReviewRepository
 }
 
 type gormReviewRepository struct {
@@ -159,4 +161,11 @@ func (r *gormReviewRepository) GetAvgRatingByTrip(tripID uint) (float64, error) 
 		return 0, err
 	}
 	return avgRating, nil
+}
+
+func (r *gormReviewRepository) WithDB(db *gorm.DB) ReviewRepository {
+	return &gormReviewRepository{
+		DB:     db,
+		logger: r.logger,
+	}
 }

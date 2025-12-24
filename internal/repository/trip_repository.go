@@ -107,7 +107,7 @@ func (r *gormTripRepository) GetByID(id uint) (*models.Trip, error) {
 }
 
 func (r *gormTripRepository) Update(trip *models.Trip) error {
-	op := "repository.booking.update"
+	op := "repository.trip.update"
 
 	r.logger.Debug("db call",
 		slog.String("op", op),
@@ -154,7 +154,7 @@ func (r *gormTripRepository) IsPassenger(tripID, userID uint) (bool, error) {
 	var count int64
 
 	err := r.db.Model(&models.Booking{}).
-		Where("trip_id = ? AND user_id = ?", tripID, userID).
+		Where("trip_id = ? AND passenger_id = ?", tripID, userID).
 		Count(&count).Error
 
 	if err != nil {

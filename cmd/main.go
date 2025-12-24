@@ -46,7 +46,7 @@ func main() {
 	carService := services.NewCarService(carRepo, userRepo, logger)
 	tripService := services.NewTripService(tripRepo, userRepo, carRepo, logger)
 	bookingService := services.NewBookingService(bookingRepo, tripRepo, db, logger)
-	reviewService := services.NewReviewService(reviewRepo, tripRepo, logger)
+	reviewService := services.NewReviewService(reviewRepo, tripRepo, db, logger)
 
 	transports.RegisterRoutes(
 		r, logger,
