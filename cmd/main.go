@@ -40,13 +40,22 @@ func main() {
 	carRepo := repository.NewCarRepository(db, logger)
 	tripRepo := repository.NewTripRepository(db, logger)
 	bookingRepo := repository.NewBookingRepository(db, logger)
+	reviewRepo := repository.NewReviewRepository(db, logger)
 
 	userService := services.NewUserService(userRepo, logger)
 	carService := services.NewCarService(carRepo, userRepo, logger)
 	tripService := services.NewTripService(tripRepo, userRepo, carRepo, logger)
 	bookingService := services.NewBookingService(bookingRepo, tripRepo, db, logger)
+	reviewService := services.NewReviewService(reviewRepo, tripRepo, logger)
 
-	transports.RegisterRoutes(r, logger, userService, carService, tripService, bookingService)
+	transports.RegisterRoutes(
+		r, logger,
+		userService,
+		carService,
+		tripService,
+		bookingService,
+		reviewService,
+	)
 
 	port := os.Getenv("PORT")
 	if port == "" {
