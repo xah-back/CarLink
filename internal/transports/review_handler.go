@@ -236,6 +236,5 @@ func (h *ReviewHandler) Delete(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusNoContent, gin.H{"status": "deleted"})
+	ctx.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
