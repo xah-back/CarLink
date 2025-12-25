@@ -18,15 +18,15 @@ var (
 )
 
 type ReviewService interface {
-	Create(tripID uint, req *dto.ReviewCreateRequest) (*models.Review, error)
+	Create(tripID, authorID uint, req *dto.ReviewCreateRequest) (*models.Review, error)
 
 	List(filter models.Page) ([]models.Review, error)
 
-	// GetByID(id uint) (*models.Review, error)
+	GetByID(id uint) (*models.Review, error)
 
-	// Update(id uint, req *models.Review) (*models.Review, error)
+	Update(id, authorID uint, req *dto.ReviewUpdateRequest) (*models.Review, error)
 
-	// Delete(id uint) error
+	Delete(id, authorID uint) error
 }
 
 type reviewService struct {
@@ -50,7 +50,7 @@ func NewReviewService(
 	}
 }
 
-func (s *reviewService) Create(tripID uint, req *dto.ReviewCreateRequest) (*models.Review, error) {
+func (s *reviewService) Create(tripID, authorId uint, req *dto.ReviewCreateRequest) (*models.Review, error) {
 	op := "service.review.create"
 
 	var created *models.Review
@@ -72,7 +72,7 @@ func (s *reviewService) Create(tripID uint, req *dto.ReviewCreateRequest) (*mode
 			return ErrTripNotCompleted
 		}
 
-		isPassenger, err := tr.IsPassenger(tripID, req.AuthorID)
+		isPassenger, err := tr.IsPassenger(tripID, authorId)
 		if err != nil {
 			return err
 		}
@@ -80,25 +80,25 @@ func (s *reviewService) Create(tripID uint, req *dto.ReviewCreateRequest) (*mode
 		if !isPassenger {
 			s.logger.Error("user is not passenger",
 				slog.String("op", op),
-				slog.Uint64("userID", uint64(req.AuthorID)),
+				slog.Uint64("userID", uint64(authorId)),
 				slog.Uint64("tripID", uint64(tripID)),
 			)
 			return ErrUserNotPassenger
 		}
 
-		exists, err := rr.ExistsByTripAndUser(tripID, req.AuthorID)
+		exists, err := rr.ExistsByTripAndUser(tripID, authorId)
 		if err != nil {
 			s.logger.Error("error checking review existence", slog.String("op", op), slog.Any("error", err))
 			return err
 		}
 		if exists {
 			s.logger.Error("review already exists for this user and trip",
-				slog.String("op", op), slog.Uint64("userID", uint64(req.AuthorID)), slog.Uint64("tripID", uint64(tripID)))
+				slog.String("op", op), slog.Uint64("userID", uint64(authorId)), slog.Uint64("tripID", uint64(tripID)))
 			return ErrReviewAlreadyPresent
 		}
 
 		review := &models.Review{
-			AuthorID: req.AuthorID,
+			AuthorID: authorId,
 			TripID:   tripID,
 			Rating:   req.Rating,
 			Text:     req.Text,
@@ -144,4 +144,96 @@ func (s *reviewService) List(filter models.Page) ([]models.Review, error) {
 
 	s.logger.Info("reviews listed", slog.String("op", op), slog.Int("count", len(reviews)))
 	return reviews, nil
+}
+
+func (s *reviewService) GetByID(id uint) (*models.Review, error) {
+	op := "service.review.getByID"
+	s.logger.Debug("call", slog.String("op", op), slog.Uint64("id", uint64(id)))
+
+	review, err := s.reviewRepo.GetByID(id)
+	if err != nil {
+		s.logger.Error("error", slog.String("op", op), slog.Any("error", err))
+		return nil, err
+	}
+	s.logger.Info("review retrieved", slog.String("op", op), slog.Uint64("id", uint64(id)))
+	return review, nil
+}
+
+func (s *reviewService) Update(id, authorID uint, req *dto.ReviewUpdateRequest) (*models.Review, error) {
+	op := "service.review.update"
+
+	var updated *models.Review
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		rr := s.reviewRepo.WithDB(tx)
+		tr := s.tripRepo.WithDB(tx)
+
+		review, err := rr.GetByID(id)
+		if err != nil {
+			return err
+		}
+
+		if review.AuthorID != authorID {
+			return errors.New("permission denied")
+		}
+
+		if req.Text != nil {
+			review.Text = *req.Text
+		}
+		if req.Rating != nil {
+			review.Rating = *req.Rating
+		}
+
+		if _, err := rr.Update(review); err != nil {
+			s.logger.Error("error updating review", slog.String("op", op), slog.Any("error", err))
+			return err
+		}
+
+		avgRating, err := rr.GetAvgRatingByTrip(review.TripID)
+		if err != nil {
+			return err
+		}
+
+		if err := tr.UpdateAvgRating(review.TripID, avgRating); err != nil {
+			return err
+		}
+
+		updated = review
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func (s *reviewService) Delete(id, authorID uint) error {
+	op := "service.review.delete"
+
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		rr := s.reviewRepo.WithDB(tx)
+		tr := s.tripRepo.WithDB(tx)
+
+		review, err := rr.GetByID(id)
+		if err != nil {
+			return err
+		}
+
+		if review.AuthorID != authorID {
+			return errors.New("permission denied")
+		}
+
+		if err := rr.Delete(id); err != nil {
+			s.logger.Error("error deleting review", slog.String("op", op), slog.Any("error", err))
+			return err
+		}
+
+		avgRating, err := rr.GetAvgRatingByTrip(review.TripID)
+		if err != nil {
+			return err
+		}
+
+		return tr.UpdateAvgRating(review.TripID, avgRating)
+	})
 }

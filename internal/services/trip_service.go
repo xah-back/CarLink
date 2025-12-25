@@ -65,6 +65,7 @@ func (s *tripService) Create(id uint, req *dto.TripCreateRequest) (*models.Trip,
 		AvailableSeats: req.AvailableSeats,
 		Price:          req.Price,
 		TripStatus:     string(constants.TripPublished),
+		AvgRating:      0,
 	}
 
 	if err := s.tripRepo.Create(&trip); err != nil {
