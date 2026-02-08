@@ -1,6 +1,6 @@
 module github.com/mutsaevz/team-5-ambitious
 
-go 1.25.4
+go 1.25
 
 require (
 	github.com/brianvoe/gofakeit/v6 v6.28.0
@@ -8,6 +8,11 @@ require (
 	github.com/joho/godotenv v1.5.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
+)
+
+require (
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 )
 
 require (
@@ -36,6 +41,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect

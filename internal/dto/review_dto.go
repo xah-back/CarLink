@@ -8,3 +8,11 @@ type ReviewUpdateRequest struct {
 	Text   *string `json:"text"`
 	Rating *int    `json:"rating"`
 }
+
+type ReviewListItem struct {
+	ID       uint
+	AuthorID uint
+	TripID   uint
+	Rating   int
+	Text     string
+}

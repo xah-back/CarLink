@@ -25,6 +25,8 @@ type TripRepository interface {
 
 	UpdateAvgRating(tripID uint, avg float64) error
 
+	UpdateAvgRatingFromReviews(tripID uint) error
+
 	IsPassenger(tripID, userID uint) (bool, error)
 
 	UpdateTripStatuses(now time.Time) error
@@ -147,6 +149,21 @@ func (r *gormTripRepository) UpdateAvgRating(tripID uint, avg float64) error {
 		slog.Float64("avg_rating", avg),
 	)
 	if err := r.db.Model(&models.Trip{}).Where("id = ?", tripID).Update("avg_rating", avg).Error; err != nil {
+		r.logger.Error("db error", slog.String("op", op), slog.Any("error", err))
+		return err
+	}
+	return nil
+}
+func (r *gormTripRepository) UpdateAvgRatingFromReviews(tripID uint) error {
+	op := "repository.trip.update_avg_rating_from_reviews"
+	r.logger.Debug("db call",
+		slog.String("op", op),
+		slog.Uint64("trip_id", uint64(tripID)),
+	)
+	if err := r.db.Model(&models.Trip{}).
+		Where("id = ?", tripID).
+		Update("avg_rating", gorm.Expr("(SELECT AVG(rating) FROM reviews WHERE trip_id = ?)", tripID)).
+		Error; err != nil {
 		r.logger.Error("db error", slog.String("op", op), slog.Any("error", err))
 		return err
 	}

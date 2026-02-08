@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"errors"
 	"log/slog"
 
+	"github.com/mutsaevz/team-5-ambitious/internal/dto"
 	"github.com/mutsaevz/team-5-ambitious/internal/models"
 	"gorm.io/gorm"
 )
@@ -10,7 +12,7 @@ import (
 type ReviewRepository interface {
 	Create(review *models.Review) error
 
-	List(filter models.Page) ([]models.Review, error)
+	List(filter models.Page) ([]dto.ReviewListItem, error)
 
 	GetByID(id uint) (*models.Review, error)
 
@@ -51,11 +53,9 @@ func (r *gormReviewRepository) Create(review *models.Review) error {
 	return nil
 }
 
-func (r *gormReviewRepository) List(filter models.Page) ([]models.Review, error) {
-
+func (r *gormReviewRepository) List(filter models.Page) ([]dto.ReviewListItem, error) {
 	op := "repository.review.list"
 	r.logger.Debug("db call", slog.String("op", op))
-	var reviews []models.Review
 
 	page := filter.Page
 	pageSize := filter.PageSize
@@ -63,18 +63,37 @@ func (r *gormReviewRepository) List(filter models.Page) ([]models.Review, error)
 	if page < 1 {
 		page = 1
 	}
-
-	if pageSize <= 0 || pageSize > 100 {
-		pageSize = 100
+	if pageSize <= 0 {
+		pageSize = 1000
+	}
+	if pageSize > 100 {
+		pageSize = 1000
 	}
 
-	offset := (page - 1) * pageSize
+	reviews := make([]dto.ReviewListItem, 0, pageSize)
+	db := r.DB.Model(&models.Review{})
 
-	if err := r.DB.Offset(offset).Limit(pageSize).Find(&reviews).Error; err != nil {
+	if filter.TripID != nil {
+		db = db.Where("trip_id = ?", *filter.TripID)
+	}
+	if filter.AuthorID != nil {
+		db = db.Where("author_id = ?", *filter.AuthorID)
+	}
+
+	if filter.LastID != nil {
+		db = db.Where("id < ?", *filter.LastID)
+	} else if page > 1 {
+		db = db.Offset((page - 1) * pageSize)
+	}
+
+	if err := db.
+		Order("id DESC").
+		Limit(pageSize).
+		Find(&reviews).Error; err != nil {
 		r.logger.Error("db error", slog.String("op", op), slog.Any("error", err))
 		return nil, err
 	}
-	r.logger.Debug("db response", slog.String("op", op), slog.Int("count", len(reviews)))
+
 	return reviews, nil
 }
 
@@ -88,6 +107,9 @@ func (r *gormReviewRepository) GetByID(id uint) (*models.Review, error) {
 	var review models.Review
 
 	if err := r.DB.Where("id = ?", id).First(&review).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
 		r.logger.Error("db error", slog.String("op", op), slog.Any("error", err))
 		return nil, err
 	}
@@ -120,6 +142,9 @@ func (r *gormReviewRepository) Delete(id uint) error {
 		r.logger.Error("db error", slog.String("op", op), slog.Any("error", result.Error))
 		return result.Error
 	}
+	if result.RowsAffected == 0 {
+		return ErrNotFound
+	}
 	return nil
 }
 
@@ -132,16 +157,15 @@ func (r *gormReviewRepository) ExistsByTripAndUser(tripID, userID uint) (bool, e
 		slog.Uint64("trip_id", uint64(tripID)),
 		slog.Uint64("user_id", uint64(userID)),
 	)
-	var count int64
 
-	if err := r.DB.Model(&models.Review{}).
+	var exists bool
+	err := r.DB.Model(&models.Review{}).
+		Select("1").
 		Where("trip_id = ? AND author_id = ?", tripID, userID).
-		Count(&count).Error; err != nil {
-		r.logger.Error("db error", slog.String("op", op), slog.Any("error", err))
-		return false, err
-	}
-	return count > 0, nil
+		Limit(1).
+		Scan(&exists).Error
 
+	return exists, err
 }
 
 func (r *gormReviewRepository) GetAvgRatingByTrip(tripID uint) (float64, error) {

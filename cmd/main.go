@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"log"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -12,16 +15,25 @@ import (
 	"github.com/mutsaevz/team-5-ambitious/internal/repository"
 	"github.com/mutsaevz/team-5-ambitious/internal/services"
 	"github.com/mutsaevz/team-5-ambitious/internal/transports"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// инициализация логгера (tmp внутри logging)
 	logger := config.InitLogger()
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
 
 	db := config.SetUpDatabaseConnection(logger)
 	if db == nil {
@@ -60,7 +72,7 @@ func main() {
 	carService := services.NewCarService(carRepo, userRepo, logger)
 	tripService := services.NewTripService(tripRepo, userRepo, carRepo, logger)
 	bookingService := services.NewBookingService(bookingRepo, tripRepo, db, logger)
-	reviewService := services.NewReviewService(reviewRepo, tripRepo, db, logger)
+	reviewService := services.NewReviewService(reviewRepo, tripRepo, db, rdb, logger)
 
 	transports.RegisterRoutes(
 		r, logger,

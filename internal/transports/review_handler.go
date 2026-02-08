@@ -105,15 +105,20 @@ func (h *ReviewHandler) List(ctx *gin.Context) {
 
 	var filter models.Page
 
-	if err := ctx.ShouldBindQuery(&filter); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		h.logger.Error("invalid query parameters",
-			slog.String("method", ctx.Request.Method),
-			slog.String("path", ctx.FullPath()),
-			slog.Any("error", err),
-		)
-		return
+	if err := ctx.Query("page"); err != "" {
+		page, err := strconv.Atoi(err)
+		if err == nil {
+			filter.Page = page
+		}
 	}
+
+	if err := ctx.Query("pageSize"); err != "" {
+		pageSize, err := strconv.Atoi(err)
+		if err == nil {
+			filter.PageSize = pageSize
+		}
+	}
+
 	reviews, err := h.service.List(filter)
 	if err != nil {
 		h.logger.Error("error listing reviews",
@@ -124,10 +129,7 @@ func (h *ReviewHandler) List(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
-	h.logger.Info("reviews listed successfully",
-		slog.String("method", ctx.Request.Method),
-		slog.String("path", ctx.FullPath()),
-	)
+
 	ctx.JSON(http.StatusOK, reviews)
 }
 

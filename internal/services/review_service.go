@@ -1,13 +1,19 @@
 package services
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
+	"math/rand"
+	"time"
 
 	"github.com/mutsaevz/team-5-ambitious/internal/constants"
 	"github.com/mutsaevz/team-5-ambitious/internal/dto"
 	"github.com/mutsaevz/team-5-ambitious/internal/models"
 	"github.com/mutsaevz/team-5-ambitious/internal/repository"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +26,7 @@ var (
 type ReviewService interface {
 	Create(tripID, authorID uint, req *dto.ReviewCreateRequest) (*models.Review, error)
 
-	List(filter models.Page) ([]models.Review, error)
+	List(filter models.Page) ([]dto.ReviewListItem, error)
 
 	GetByID(id uint) (*models.Review, error)
 
@@ -33,6 +39,7 @@ type reviewService struct {
 	reviewRepo repository.ReviewRepository
 	tripRepo   repository.TripRepository
 	logger     *slog.Logger
+	redis      *redis.Client
 	db         *gorm.DB
 }
 
@@ -40,12 +47,14 @@ func NewReviewService(
 	reviewRepo repository.ReviewRepository,
 	tripRepo repository.TripRepository,
 	db *gorm.DB,
+	redis *redis.Client,
 	logger *slog.Logger,
 ) ReviewService {
 	return &reviewService{
 		reviewRepo: reviewRepo,
 		tripRepo:   tripRepo,
 		logger:     logger,
+		redis:      redis,
 		db:         db,
 	}
 }
@@ -109,13 +118,7 @@ func (s *reviewService) Create(tripID, authorId uint, req *dto.ReviewCreateReque
 			return err
 		}
 
-		avgRating, err := rr.GetAvgRatingByTrip(tripID)
-		if err != nil {
-			s.logger.Error("error calculating average rating", slog.String("op", op), slog.Any("error", err))
-			return err
-		}
-
-		if err := tr.UpdateAvgRating(tripID, avgRating); err != nil {
+		if err := tr.UpdateAvgRatingFromReviews(tripID); err != nil {
 			s.logger.Error("error updating trip average rating", slog.String("op", op), slog.Any("error", err))
 			return err
 		}
@@ -127,23 +130,46 @@ func (s *reviewService) Create(tripID, authorId uint, req *dto.ReviewCreateReque
 	if err != nil {
 		return nil, err
 	}
+	s.invalidateReviewListCache()
 	return created, nil
 }
 
-func (s *reviewService) List(filter models.Page) ([]models.Review, error) {
-
+func (s *reviewService) List(filter models.Page) ([]dto.ReviewListItem, error) {
 	op := "service.review.list"
 
-	s.logger.Debug(" call", slog.String("op", op))
+	// 🔥 кешируем ТОЛЬКО первую страницу БЕЗ фильтров
+	useCache := filter.Page <= 1 &&
+		filter.LastID == nil &&
+		filter.TripID == nil &&
+		filter.AuthorID == nil
 
-	reviews, err := s.reviewRepo.List(filter)
+	ctx := context.Background()
+	var cacheKey string
+
+	if useCache {
+		cacheKey = buildReviewListCacheKey(filter)
+
+		if data, err := s.redis.Get(ctx, cacheKey).Bytes(); err == nil {
+			var items []dto.ReviewListItem
+			if err := json.Unmarshal(data, &items); err == nil {
+				s.logger.Debug("cache hit", slog.String("op", op))
+				return items, nil
+			}
+		}
+	}
+
+	items, err := s.reviewRepo.List(filter)
 	if err != nil {
-		s.logger.Error(" error", slog.String("op", op), slog.Any("error", err))
 		return nil, err
 	}
 
-	s.logger.Info("reviews listed", slog.String("op", op), slog.Int("count", len(reviews)))
-	return reviews, nil
+	if useCache {
+		data, _ := json.Marshal(items)
+		ttl := 30*time.Second + time.Duration(rand.Intn(10))*time.Second
+		_ = s.redis.Set(ctx, cacheKey, data, ttl).Err()
+	}
+
+	return items, nil
 }
 
 func (s *reviewService) GetByID(id uint) (*models.Review, error) {
@@ -189,12 +215,7 @@ func (s *reviewService) Update(id, authorID uint, req *dto.ReviewUpdateRequest) 
 			return err
 		}
 
-		avgRating, err := rr.GetAvgRatingByTrip(review.TripID)
-		if err != nil {
-			return err
-		}
-
-		if err := tr.UpdateAvgRating(review.TripID, avgRating); err != nil {
+		if err := tr.UpdateAvgRatingFromReviews(review.TripID); err != nil {
 			return err
 		}
 
@@ -205,13 +226,14 @@ func (s *reviewService) Update(id, authorID uint, req *dto.ReviewUpdateRequest) 
 	if err != nil {
 		return nil, err
 	}
+	s.invalidateReviewListCache()
 	return updated, nil
 }
 
 func (s *reviewService) Delete(id, authorID uint) error {
 	op := "service.review.delete"
 
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		rr := s.reviewRepo.WithDB(tx)
 		tr := s.tripRepo.WithDB(tx)
 
@@ -229,11 +251,58 @@ func (s *reviewService) Delete(id, authorID uint) error {
 			return err
 		}
 
-		avgRating, err := rr.GetAvgRatingByTrip(review.TripID)
-		if err != nil {
-			return err
-		}
-
-		return tr.UpdateAvgRating(review.TripID, avgRating)
+		return tr.UpdateAvgRatingFromReviews(review.TripID)
 	})
+	if err != nil {
+		return err
+	}
+	s.invalidateReviewListCache()
+	return nil
+
+}
+
+func buildReviewListCacheKey(filter models.Page) string {
+	tripID := uint(0)
+	if filter.TripID != nil {
+		tripID = *filter.TripID
+	}
+
+	authorID := uint(0)
+	if filter.AuthorID != nil {
+		authorID = *filter.AuthorID
+	}
+
+	page := filter.Page
+	if page < 1 {
+		page = 1
+	}
+
+	pageSize := filter.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	return fmt.Sprintf(
+		"reviews:list:trip=%d:author=%d:page=%d:size=%d",
+		tripID,
+		authorID,
+		page,
+		pageSize,
+	)
+}
+
+func (s *reviewService) invalidateReviewListCache() {
+	ctx := context.Background()
+
+	pageSizes := []int{10, 20, 50, 100}
+	for _, size := range pageSizes {
+		key := fmt.Sprintf(
+			"reviews:list:trip=0:author=0:page=1:size=%d",
+			size,
+		)
+		_ = s.redis.Del(ctx, key).Err()
+	}
 }
