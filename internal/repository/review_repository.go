@@ -100,6 +100,7 @@ func (r *gormReviewRepository) List(filter models.Page) ([]dto.ReviewListItem, e
 func (r *gormReviewRepository) GetByID(id uint) (*models.Review, error) {
 
 	op := "repository.review.get_by_id"
+
 	r.logger.Debug("db call",
 		slog.String("op", op),
 		slog.Uint64("id", uint64(id)),
@@ -119,6 +120,7 @@ func (r *gormReviewRepository) GetByID(id uint) (*models.Review, error) {
 func (r *gormReviewRepository) Update(review *models.Review) (*models.Review, error) {
 
 	op := "repository.review.update"
+
 	r.logger.Debug("db call",
 		slog.String("op", op),
 		slog.Uint64("id", uint64(review.ID)),
@@ -133,6 +135,7 @@ func (r *gormReviewRepository) Update(review *models.Review) (*models.Review, er
 func (r *gormReviewRepository) Delete(id uint) error {
 
 	op := "repository.review.delete"
+
 	r.logger.Debug("db call",
 		slog.String("op", op),
 		slog.Uint64("id", uint64(id)),

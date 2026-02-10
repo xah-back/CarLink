@@ -12,7 +12,8 @@ const (
 type BookingStatus string
 
 const (
-	BookingPending  = "pending"   // заявка отправлена
-	BookingApproved = "approved"  // водитель принял
-	BookingRejected = "rejected"  // водитель отклонил
+	BookingPending  = "pending"  // заявка отправлена
+	BookingApproved = "approved" // водитель принял
+	BookingRejected = "rejected" // водитель отклонил
+
 )
